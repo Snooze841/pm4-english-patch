@@ -1,0 +1,8 @@
+# Store and check out every file byte for byte, on every platform.
+#
+# Without this, git rewrites line endings in text files on the way in and
+# on the way out, so a clone on Linux hands you different bytes than a
+# clone on Windows -- and then neither matches the SHA-256 in
+# CHECKSUMS.txt. The checksums are the point of this repository, so no
+# file here may be translated on its way to you.
+* -text

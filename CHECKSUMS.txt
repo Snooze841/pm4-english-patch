@@ -1,0 +1,96 @@
+SHA-256 OF EVERY FILE IN THIS DOWNLOAD
+=====================================
+
+Generated 16 October 2026.
+
+Check a file on Windows with:
+
+   certutil -hashfile "PM4 full translation+UI.zip" SHA256
+
+If a hash does not match, you did not get that file from here.
+
+
+THE EXECUTABLE -- THE ONE FILE WORTH CHECKING FIRST
+---------------------------------------------------
+
+This is the riskiest file here and the only one you cannot
+read. It sits at the root of this repository on its own, so
+you can hash it, or upload it to a scanner, without unpacking the
+zip. It is the same bytes as the copy inside the zip.
+
+d7059c7d7c85532dfbed6b903c20f23e0eacb1076a56df6ea87fd3a09baafec6  PM4 full translation+UI.exe
+
+   6,405,815 bytes
+
+You do not have to run it. SECURITY.txt explains how to do the
+same job with the four Python files instead, and how to build your
+own executable from them if you would rather.
+
+
+THE DOWNLOAD
+------------
+
+903518a9cda4de57e7a5a6f4fb066c795e97f5edc7e0d27d83f99a300e295e65  PM4 full translation+UI.zip
+
+   7,074,641 bytes
+
+
+EVERYTHING INSIDE THE ZIP
+-------------------------
+
+All 14 of them, each with the place in this repository where you can
+read or fetch that exact file, byte for byte, without downloading
+the zip at all.
+
+1a95c99355d9f001e804b82f9a60ffb7e89e787dde9574da34ecd4b92f256df3  HOW TO INSTALL.txt
+                                                                  -> translation/HOW TO INSTALL.txt
+0cff7837628fd495aeaacf52aaeecdfa8931155d1a753f446b4e7c5a66d23904  README.txt
+                                                                  -> translation/README.txt
+44cf768cf1e8d97044f6c273e62abd3fc85a061317862392f4e803aafca226b9  SECURITY.txt
+                                                                  -> translation/SECURITY.txt
+1d5e61658b6d2149e94b269909ed12e83a3a9cc2d3ecf608a64339537131e0fc  TRANSLATING IT YOURSELF.txt
+                                                                  -> translation/TRANSLATING IT YOURSELF.txt
+d4e38d3d13c36ef289e1ef5bc2cd44b5b18d5396b5e7b99094161556590fff01  Install.bat
+                                                                  -> translation/Install.bat
+49656a96b1370bfe7282f7d792a87650bc17700d9a597d8aee1d3b40c885cc53  Undo.bat
+                                                                  -> translation/Undo.bat
+8d66e62ff94d876f5d74b6f156cecca64d7e508ee13792f5401c7b2cc837c82f  Add the English keyboard.bat
+                                                                  -> translation/Add the English keyboard.bat
+d7059c7d7c85532dfbed6b903c20f23e0eacb1076a56df6ea87fd3a09baafec6  PM4 full translation+UI.exe
+                                                                  -> at the root of this repository
+517bcdcc34f0dc8536e5ed15d1f54714aa0f28b596b35ccf637116ce1538a2bc  pm4_full_translate.py
+                                                                  -> translation/pm4_full_translate.py
+8a153ee1188bee0fd9996e0a92c83b8a5d7270a7f646a1b566504f6bc61faaad  pm4_english_patch.py
+                                                                  -> translation/pm4_english_patch.py
+dd4bb42ca25efbbb7ccdaf2285281828badf207b5eaca315799cb5a91066edf6  pm4_ui_apply.py
+                                                                  -> translation/pm4_ui_apply.py
+7da9ee539ebf19f014a5f7347ac60daca0b76d3c2aab7bfebf360ef220d73cfa  pm4_exe_keyboard.py
+                                                                  -> translation/pm4_exe_keyboard.py
+7bffc83a90cce1375b4aa04075d515ea263646068c59f5ce9ace3c768ab19a39  pm4_english_patch.json
+                                                                  -> translation/pm4_english_patch.json
+e3e34970bf38d9823f13bb4cc7ce0c2e5f29e289dea0567659d9d3cdb5a72469  pm4_ui_patch.json
+                                                                  -> translation/pm4_ui_patch.json
+
+
+WHAT IS NOT IN THIS LIST, AND WHY
+---------------------------------
+
+The zip's own hash is not inside the zip, because adding it would
+change the zip and so change its hash. That is why this file sits
+next to the download instead of in it, and why this file has no hash
+of itself either.
+
+Three other files in this repository are deliberately unlisted:
+CHECKSUMS.txt (this file), .gitattributes and .gitignore. They are
+git's own configuration, not part of the download -- nothing installs
+them and nothing reads them but git. Everything that reaches your
+Princess Maker 4 folder is listed above.
+
+
+THE ZIP IS REPRODUCIBLE
+-----------------------
+
+Every entry in it is stored with a fixed timestamp rather than the
+clock of the machine that built it, so building it twice from the
+same files gives the same SHA-256. The .exe is not reproducible --
+PyInstaller embeds paths and timestamps -- and SECURITY.txt says so.

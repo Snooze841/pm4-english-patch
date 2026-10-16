@@ -1,0 +1,131 @@
+PM4 full translation + UI
+Princess Maker 4 in English -- story, menus and a keyboard you can type on
+==========================================================================
+
+
+HOW TO INSTALL
+
+  You need Princess Maker 4 (2005, Gainax / CyberFront), installed and
+  working. Nothing else -- no Python, no extra downloads.
+
+  1. Close Princess Maker 4 if it is running.
+  2. Copy every file from this folder into your Princess Maker 4 folder,
+     the one that has PrincessMaker4.exe in it.
+  3. Double-click            Install.bat
+  4. Start the game.
+
+
+THE ENGLISH KEYBOARD IS A SEPARATE STEP
+
+  The name-entry screen offers kana and no way to type a Latin name. The
+  fix is the only part of this patch that edits PrincessMaker4.exe, and
+  the game's copy protection checks that file against itself before the
+  game starts -- edit it while that check is live and the game does not
+  start at all. So the keys stay Japanese until you run:
+
+      Add the English keyboard.bat
+
+  It checks your copy first and refuses if the protection is still
+  active; if your copy already has a no-CD patch it goes ahead.
+  Install.bat tells you in advance whether it will work here.
+
+  Names are limited to six characters either way -- that count lives in a
+  part of the file no patch can reach, so "Alice" and "Sophie" fit and
+  "Charlotte" does not.
+
+  If the game stops starting after you add it, run Undo.bat.
+
+
+IF YOU USE A NO-CD PATCH
+
+  Apply the no-CD patch FIRST, then add the keyboard:
+
+    1. install the game
+    2. apply your no-CD patch
+    3. Install.bat                      (story + interface)
+    4. Add the English keyboard.bat
+
+  A no-CD patch replaces the program file, so applying one AFTER adding
+  the keyboard loses the keyboard -- run "Add the English keyboard.bat"
+  again. The story and the menus never touch the program file.
+
+
+IF SOMETHING LOOKS WRONG
+
+  Double-click             Undo.bat
+
+  Everything goes back exactly as it was -- story, menus and keyboard.
+  You can install again afterwards; running Install twice is safe and
+  gives the same result as running it once.
+
+  Undo needs these three files, so leave them alone. They never leave
+  your machine.
+
+      script.orig_backup              your original story file
+      gd.ui_undo                      the pixels the menu patch replaced
+      PrincessMaker4.exe.kbd_backup   your original executable
+
+
+WHAT IT CHANGES
+
+  The story: 16,544 story lines, 89 item names and 89 item descriptions,
+  written into the file called 'script'. No Japanese left in it.
+
+  The menus: 243 pieces of lettering across 26 pictures inside the archive
+  called 'gd'. The three name-entry keyboard pictures, carrying 264 more
+  labels, belong to the keyboard step instead.
+
+  The job cards: all 23 schedule cards -- Chores, Babysit, Farm, Church,
+  Diner, Maid, Logging, Inn, Market, Tavern, Tutor, Maid Bar, Shady Bar,
+  Casino, Class, Combat, Magic, Manners, Art, Dance, Free Day, Rest at
+  Home, In Hospital.
+
+  Four pictures stay Japanese: the four contest banners. Their lettering
+  is painted on ornamented plates and could not be lifted off without
+  damaging the artwork. The certificates you win there are translated.
+
+  Not changed: your saves, your settings, the music, the artwork, or
+  anything in the folder it was not asked to touch.
+
+  The menu part contains no artwork from the game -- only each label's
+  position and our own lettering with a transparency channel. The
+  background behind each label is rebuilt on your machine out of your own
+  copy of the game, by one of four methods described in README.txt.
+
+
+WITHOUT THE .EXE
+
+  Everything here also works from the Python files. Python 3.8 or newer,
+  no libraries to install.
+
+      python pm4_full_translate.py
+      python pm4_full_translate.py --undo
+      python pm4_full_translate.py --no-keyboard
+      python pm4_full_translate.py --no-ui
+      python pm4_full_translate.py --no-story
+      python pm4_english_patch.py        the story only
+      python pm4_ui_apply.py             the menus only
+      python pm4_exe_keyboard.py         the keyboard only
+      python pm4_full_translate.py --game "C:\Games\Princess Maker 4"
+
+  The last one is for when the patcher cannot find your game.
+
+
+IF IT GOES WRONG
+
+  "I cannot read 'script' because something is holding it open"
+  "Permission denied" on gd
+      The game is still running and holding the file open. Close it and
+      try again.
+
+  The game will not start after adding the keyboard
+      Run Undo.bat, then Install.bat. You keep the whole translation and
+      lose only the Latin keyboard. Your copy's protection is still
+      active, and it will not tolerate an edited program.
+
+  Something looks jumbled on screen
+      Run Undo.bat and then Install.bat once.
+
+
+Made for free, for people who wanted to play this game and could not read
+it. If you want to say thanks:   https://ko-fi.com/jdksnoozer

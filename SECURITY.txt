@@ -1,0 +1,272 @@
+WHAT THIS PATCH DOES TO YOUR COMPUTER, AND HOW TO CHECK
+=======================================================
+
+Everything below can be checked on your own machine.
+
+
+THE SHORT VERSION
+-----------------
+
+- Seven filenames, all inside your Princess Maker 4 folder. Nowhere else.
+- No network connection, no other program started, no registry, no eval and
+  no pickle anywhere in my code. The .exe does contain a socket module and
+  an OpenSSL library; they come with the Python interpreter PyInstaller
+  packs in, and every such entry is accounted for below.
+- Undo.bat puts everything back, byte for byte.
+- No administrator rights. In Program Files the patcher fails with a
+  permission error rather than escalating; move the game somewhere you own.
+- You do not have to run the .exe at all.
+
+
+YOUR ANTIVIRUS MAY FLAG THE .EXE. CHECK IT YOURSELF
+---------------------------------------------------
+
+The .exe is a Python program packaged with PyInstaller. Three things set off
+heuristics: PyInstaller executables are a known false-positive magnet,
+because the packaging bundles an interpreter and unpacks itself at startup,
+which is also how some real malware behaves; the .exe is unsigned, because
+certificates cost money every year; and it edits another program, since "Add
+the English keyboard.bat" writes 384 bytes into PrincessMaker4.exe. A flag
+tells you nothing either way.
+
+Every file's SHA-256 is in CHECKSUMS.txt, next to the download. The zip's is
+there too -- it cannot be inside the zip, because adding it would change the
+zip and so change its checksum.
+
+   certutil -hashfile "PM4 full translation+UI.exe" SHA256
+
+No match means you did not get that file from here.
+
+I have deliberately not posted a scan result. A screenshot of a clean scan
+proves nothing: anyone can show you a scan of a different file. Upload the
+file you actually downloaded, or paste its SHA-256 into the search box to
+see whether that exact file has been scanned already:
+
+   https://www.virustotal.com/gui/home/upload
+
+Expect an engine or two to flag it for the PyInstaller reasons above.
+
+
+YOU DO NOT HAVE TO RUN MY .EXE
+------------------------------
+
+IF YOU ALREADY HAVE PYTHON, ignore the .exe. You need 3.8 or newer and
+nothing else; there are no libraries to install.
+
+   python pm4_full_translate.py              story + interface
+   python pm4_full_translate.py --keyboard   the Latin keyboard, separately
+   python pm4_full_translate.py --undo       put everything back
+
+Those four .py files are the whole program. The .exe is only them plus an
+interpreter, for people without Python who want to double-click something.
+
+IF YOU DO NOT HAVE PYTHON, install it from https://www.python.org/downloads/
+and run the .py files. python.org is a signed installer from a well-known
+project that a great many people verify; I am a stranger on the internet
+with an unsigned executable. Of the two, trust mine less.
+
+IF YOU WANT AN EXECUTABLE BUT NOT MINE, run "pip install pyinstaller", then
+this in the folder with the four .py files and the two .json files, ALL ON
+ONE LINE:
+
+   pyinstaller --onefile --clean --noconfirm --name "PM4 full translation+UI" --add-data "pm4_english_patch.json;." --add-data "pm4_ui_patch.json;." --paths . --hidden-import pm4_english_patch --hidden-import pm4_ui_apply --hidden-import pm4_exe_keyboard pm4_full_translate.py
+
+Your build will not be byte-identical to mine -- PyInstaller embeds paths
+and timestamps -- so this is not a reproducible build in the strict sense.
+The zip is: same files in, same SHA-256 out, because every entry has a fixed
+timestamp instead of the build machine's clock.
+
+
+WHAT THE CODE CONTAINS
+----------------------
+
+Save this as check.py beside the four .py files and run it. It reports what
+is in them from the parsed syntax tree rather than by eye:
+
+   import ast, io
+   FILES = ["pm4_full_translate.py", "pm4_english_patch.py",
+            "pm4_ui_apply.py", "pm4_exe_keyboard.py"]
+   ALARMING = {"socket", "urllib", "requests", "http", "ftplib", "smtplib",
+               "subprocess", "system", "popen", "winreg", "ctypes", "rmtree",
+               "eval", "exec", "compile", "pickle", "marshal", "webbrowser"}
+   for fn in FILES:
+       tree = ast.parse(io.open(fn, encoding="utf-8").read(), fn)
+       for node in ast.walk(tree):
+           if isinstance(node, ast.Call):
+               name = getattr(node.func, "attr", getattr(node.func, "id", ""))
+               if name in ALARMING:
+                   print("%s:%d  %s" % (fn, node.lineno, name))
+               if name == "open":
+                   mode = node.args[1].value if len(node.args) > 1 else ""
+                   if any(c in str(mode) for c in "wax+"):
+                       print("%s:%d  writes a file, mode %r"
+                             % (fn, node.lineno, mode))
+           elif isinstance(node, (ast.Import, ast.ImportFrom)):
+               mod = getattr(node, "module", None) or node.names[0].name
+               if mod.split(".")[0] in ALARMING:
+                   print("%s:%d  imports %s" % (fn, node.lineno, mod))
+
+What it prints on the files in this download, exactly:
+
+   pm4_english_patch.py:564  writes a file, mode 'wb'
+   pm4_ui_apply.py:466  writes a file, mode 'wb'
+   pm4_ui_apply.py:584  writes a file, mode 'r+b'
+   pm4_ui_apply.py:886  writes a file, mode 'r+b'
+   pm4_exe_keyboard.py:481  writes a file, mode 'wb'
+   pm4_exe_keyboard.py:175  writes a file, mode 'wb'
+
+Six write sites and nothing else: no network, no subprocess, no registry and
+no eval anywhere in the code I wrote. (Line numbers are for the files as
+shipped; if you edit them, yours will differ.) That is the source, not the
+packaged .exe, which also carries an interpreter and part of its standard
+library -- see the next section.
+
+Apart from importing each other, these files import only the standard
+library:
+
+   argparse  base64  hashlib  io  json  os  shutil  struct  sys  time
+   traceback  zlib
+
+pm4_full_translate.py imports the other three, which is how one command runs
+all the parts. That is every import in the four files; check with:
+
+   grep -h "^import\|^from" *.py | sort -u
+
+
+WHAT IS INSIDE THE .EXE, INCLUDING THE PARTS THAT LOOK ALARMING
+---------------------------------------------------------------
+
+A onefile executable has an archive appended to it with a readable table of
+contents. Save this as probe.py and run it on the .exe -- it reads the
+binary, it does not run it:
+
+   import io, marshal, struct, sys, zlib
+   EXE = sys.argv[1]
+   data = io.open(EXE, "rb").read()
+   at = data.rfind(b"MEI\014\013\012\013\016")
+   _, pkg, off, ln, pyv, _ = struct.unpack("!8sIIii64s", data[at:at + 88])
+   base = at + 88 - pkg
+   print("Python %d.%d, archive of %s bytes" % (pyv // 100, pyv % 100,
+                                                format(pkg, ",")))
+   pos, end = base + off, base + off + ln
+   while pos < end:
+       elen, dpos, clen, ulen, comp, kind = struct.unpack(
+           "!iIIIBc", data[pos:pos + 18])
+       name = data[pos + 18:pos + elen].rstrip(b"\x00").decode()
+       pos += elen
+       if kind == b"z":
+           raw = data[base + dpos:base + dpos + clen]
+           pyz = zlib.decompress(raw) if comp else raw
+           toc = marshal.loads(pyz[struct.unpack("!i", pyz[8:12])[0]:])
+           mods = sorted(toc if isinstance(toc, dict) else dict(toc))
+           print("%s holds %d modules:" % (name, len(mods)))
+           for m in mods:
+               print("   %s" % m)
+       else:
+           print("%s  %s  %s bytes" % (kind.decode(), name, format(ulen, ",")))
+
+   python probe.py "PM4 full translation+UI.exe"
+
+On the file in this download that prints Python 3.10, 23 archive entries and
+a PYZ.pyz holding 99 modules. Four entries are mine -- the startup script
+pm4_full_translate and the two JSON data files, with the other three modules
+inside the PYZ. The rest is the interpreter:
+
+   _socket.pyd and select.pyd link WS2_32.dll, Windows' sockets library,
+   and are packed because the socket module is in the bundle.
+
+   libcrypto-1_1.dll is 3.4 MB of OpenSSL. The only archive entry that needs
+   it is _hashlib.pyd, which is what Python's hashlib uses for SHA-1 and
+   SHA-256, and this patch calls hashlib to check that your game archive is
+   the one it expects. Hashing, not network or encryption.
+
+   socket, urllib, subprocess, pickle, ssl and ctypes sit in the PYZ. None
+   is imported by any of my four files -- the sources are in translation/,
+   and the audit script above reports every import. socket and urllib are
+   reached only from PyInstaller's own startup module pyi_rth_inspect, by
+   way of zipfile; pickle only on an error path (hashlib.py line 263 does
+   "import logging" inside "except ValueError", and logging/__init__.py
+   line 1773 does "import pickle" inside Logger.__reduce__); subprocess,
+   ctypes and ssl are not reached.
+
+   base_library.zip holds 151 compiled modules -- os, re, codecs, io,
+   traceback and the rest of the core. Nothing network-capable.
+
+   python310.dll, the interpreter, links WS2_32.dll itself. No CPython build
+   on Windows is free of that, so "an executable with no sockets in it" is
+   not a thing that exists.
+
+Any PyInstaller executable of any program looks like this, which makes it
+ordinary rather than safe. The part specific to me is the four .py and two
+.json files, and those you can read.
+
+
+EVERY FILE IT CAN WRITE
+-----------------------
+
+All seven are inside the folder you point it at:
+
+   script                          the game's text archive, rewritten
+   script.orig_backup              your original, kept so Undo works
+   script.before_patch             only if you force a patch onto an archive
+                                   it does not recognise
+   gd                              the picture archive -- pixels changed in
+                                   place, length unchanged
+   gd.ui_undo                      the pixels it replaced, for Undo
+   PrincessMaker4.exe              ONLY if you run the keyboard step
+   PrincessMaker4.exe.kbd_backup   your original program file
+
+There is exactly one deletion in the whole program: gd.ui_undo, its own undo
+file, removed when it is about to write a fresh one.
+
+Each part checks for the file it needs first. Point it at an empty folder:
+
+   python pm4_full_translate.py --game "C:\some\empty\folder"
+
+   script is not in this folder, so this part is skipped.
+   gd is not in this folder, so this part is skipped.
+   PrincessMaker4.exe is not in this folder, so this part is skipped.
+
+
+THE PART THAT EDITS A PROGRAM
+-----------------------------
+
+"Add the English keyboard.bat" is the only thing here that writes to
+PrincessMaker4.exe, and it is not part of the normal install. It changes 384
+bytes: the table of character codes the on-screen keyboard reads, swapped
+from kana to A-Z and a-z.
+
+Princess Maker 4 shipped behind SafeDisc, which checks the program against
+itself before the game starts; if that check is still live, editing the file
+stops the game from starting. So the tool inspects your copy first, and
+refuses:
+
+   copy protection present: stxt774, stxt371
+   the header padding is empty, so the protection looks untouched
+   NOT changing the executable.
+
+With a no-CD patch that check is disabled and it proceeds:
+
+   a loader patch is installed ... so the protection is already bypassed
+   384 bytes written
+
+Either way Undo.bat restores the file byte for byte.
+
+
+WHAT I CANNOT PROVE TO YOU
+--------------------------
+
+- That nothing is hidden in the 1.9 MB of JSON. The two files are data, not
+  code -- offsets, English strings, and base64 blocks of zlib-compressed
+  RGBA pixels of lettering -- but you would have to read them to confirm it.
+  pm4_ui_apply.py shows what it does with them, and it cannot execute them.
+- That the .exe was built from these sources and nothing else. Build it
+  yourself if that matters to you.
+- That there is no bug. There are certainly bugs. Undo.bat exists because of
+  that, and it is tested on every change: the three files come back
+  byte-identical to their backups.
+
+If you find something wrong in here, please say so publicly rather than
+privately. That is how the next person gets to know. Here:
+
+   https://github.com/Snooze841/pm4-english-patch/issues

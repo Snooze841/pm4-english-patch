@@ -1,0 +1,340 @@
+TRANSLATING PRINCESS MAKER 4 YOURSELF
+=====================================
+
+For anyone translating the game into another language or redoing this one by
+hand. Measured against the Japanese PC release (2005, Gainax / CyberFront).
+Where something is still uncertain it says so.
+
+
+--------------------------------------------------------------------------
+1. WHERE THE TEXT LIVES
+--------------------------------------------------------------------------
+
+Two files in the game folder, both archives:
+
+   script     1,270,064 bytes   all the words
+   gd       613,458,191 bytes   all the pictures
+
+'script' holds seven entries. Three have text in:
+
+   room.g2        2,492,052 bytes unpacked -- the entire story
+   item_nam.txt         979 bytes          -- item names, one per line
+   item_msg.txt       3,215 bytes          -- item descriptions
+
+The other four (album.txt, pm4img.txt, prime4.g2, prime4.g2m) are indexes
+and data. pm4img.txt's three Japanese words are section markers in a
+manifest; the album screen draws its headings from a picture, so translating
+them achieves nothing and risks the album.
+
+item_nam.txt and item_msg.txt are plain Shift-JIS, CRLF line endings, one
+entry per line, NOT scrambled and NOT length-limited. Replace lines freely;
+the entry just changes size and gets rebuilt. Line 0 is a header, items are
+lines 1 to 89.
+
+
+--------------------------------------------------------------------------
+2. THE ARCHIVE FORMAT (GCEX)
+--------------------------------------------------------------------------
+
+Both 'script' and 'gd' use it.
+
+   +0x00   "GCEX"
+   +0x08   u32  offset of the index
+   +0x10   the entry data begins, one entry after another
+
+The index starts with "GCE3":
+
+   +0x18   u32  number of entries
+   then    one 32-byte record per entry:
+             +0x00  u32  hash         (of the NAME, not the data -- see below)
+             +0x04  u32  flags
+             +0x10  u64  unpacked size
+             +0x18  u64  stored size
+   then    the names: u16 length, then that many Shift-JIS bytes
+   and     at index+0x14, a crc32 over the whole index with that field zeroed
+
+Entry offsets are not stored: they are a running total of the stored sizes,
+starting at 0x10. Change one entry's length and every entry after it moves.
+
+THE 'hash' FIELD IS NOT A CHECKSUM OF THE DATA. Three pictures in our 'gd'
+differ from the shipped archive in every pixel of several rectangles, their
+hash fields are byte-identical, and the game loads them. So a pixel edit
+that keeps the length can be seeked to and written in place -- no repacking,
+no 613 MB rewrite.
+
+Each entry's data is a chain of blocks:
+
+   "GCE0" | u32 length | raw bytes              (8-byte header, uncompressed)
+   "GCE1" | ...                                 (24-byte header, compressed)
+
+The loader reads blocks into a malloc(0x40020) buffer, so an uncompressed
+block's payload cannot exceed 0x40020 bytes. The chain loop counts down and
+stops at exactly zero: the blocks must sum to EXACTLY the unpacked size.
+Compression is optional -- rewriting the three text entries as GCE0 blocks
+works, and only makes 'script' bigger (1.27 MB to 2.53 MB).
+
+
+--------------------------------------------------------------------------
+3. HOW room.g2 STORES STRINGS
+--------------------------------------------------------------------------
+
+room.g2 unpacks to a container that begins "G2CD0460":
+
+   +0x00   magic, 8 bytes
+   +0x08   0x1b
+   +0x09   u32 field
+   +0x0D   u32 symbol count
+   +0x11   u32 field
+   +0x15   the symbol table: [u32 length][length bytes][u32 code offset]
+   then    a u32 statement index, then the bytecode
+
+Strings sit in the bytecode, introduced by an opcode:
+
+   0x01    a long line of dialogue     (11,671 of them)
+   0x02    a short string or label     (17,540 of them)
+
+and the layout is
+
+   [opcode][u32 length][length bytes]
+
+so the text starts five bytes after the opcode. 29,211 strings in total.
+
+THE BYTES ARE SCRAMBLED, AND THERE IS NO KEY. Every stored byte has had its
+own position within the string, and the string's own length, added to it:
+
+   stored[i] = (plain[i] + i + len) & 0xFF
+
+   def decode(buf):
+       n = len(buf)
+       return bytes((buf[i] - i - n) & 0xFF for i in range(n))
+
+   def encode(buf):
+       n = len(buf)
+       return bytes((buf[i] + i + n) & 0xFF for i in range(n))
+
+The routine that does this is ten instructions at file offset 0x6a6b0 of
+PrincessMaker4.exe. Decoded text is Shift-JIS (cp932).
+
+
+--------------------------------------------------------------------------
+4. THE CONSTRAINT THAT SHAPES EVERYTHING
+--------------------------------------------------------------------------
+
+The bytecode reaches each string by a FIXED OFFSET. You cannot make a string
+longer, and not really shorter either -- you pad with spaces.
+
+   a 4-byte Japanese string = 2 kanji = 4 ASCII characters
+   a 6-byte string          = 3 kanji = 6 characters
+   a 49-byte line           = ~24 kana = 49 characters, newlines included
+
+A newline inside a line counts as a byte. The Japanese uses them to break
+lines in the dialogue box; keep the breaks roughly where they were.
+
+Our town menu reads "Store Tailor Restaurant Kirk Ward", not "Item Shop /
+Boutique / Restaurant / Church / Hospital", because the five Japanese names
+are 6, 6, 10, 4 and 4 bytes. "Hospital" does not fit in four.
+
+Dump every string with its byte budget first, sort by budget, and translate
+the cramped ones first. Of the last 298 strings we had to do, 272 were four
+bytes. Speaker labels repeat enormously: those 298 places were only 44
+distinct texts, and one minister's name appeared 53 times.
+
+
+--------------------------------------------------------------------------
+5. THE PICTURES
+--------------------------------------------------------------------------
+
+'gd' holds 2,621 entries. The interface lives in three folders:
+
+   sys    181 entries      menus, windows, the name-entry screens
+   bg      77              room and map backgrounds
+   sch     47              the schedule job cards
+
+Two picture formats:
+
+   "BGRA" + 4 bytes padding + u32 width + u32 height + w*h*4 pixels
+            in blue, green, red, alpha order, top row first
+
+   ordinary 24-bit .bmp, bottom row first, rows padded to 4 bytes
+
+and one that is not a picture at all:
+
+   .spd     a plain-text INI describing how to slice a sheet
+
+The .spd files are the most useful thing in the archive:
+
+   [Texture]
+   File0=gd\sys\w_stat1.argb
+   [Charactor_0]
+   numChip=1
+   Chip0=0,-103,-12,1,1,207,25
+
+   Chip = texture, offsetX, offsetY, srcX, srcY, width, height
+
+(srcX, srcY, width, height) is the rectangle inside the picture; the offsets
+are where it lands on screen. 1,277 rectangles across 151 sheets, defined by
+the game itself. Use them: grouping changed pixels instead merges twenty
+place names into one block.
+
+The chip is not always the label. On the status window the chip is the whole
+207x25 wooden plate, lettering and progress bar together, so erasing the
+chip erases the plate. On the place-name sheet the chip IS tight around the
+word. Intersect the chip with wherever the ink actually is.
+
+
+--------------------------------------------------------------------------
+6. ERASING JAPANESE WITHOUT SHIPPING THE ARTWORK
+--------------------------------------------------------------------------
+
+To patch your own copy: paint over it in any editor and repack.
+
+To DISTRIBUTE a patch you cannot ship the original art, and erasing a label
+means knowing what was underneath. The methods, chosen per label by what is
+actually behind it:
+
+   clear        The label floats on transparency. Set alpha to zero. No
+                pixels needed at all. About 90% of interface labels.
+   shade across For a label on a panel: per row, shade between the untouched
+                pixel left of the label and the untouched pixel right of it.
+                Meets both neighbours exactly, so no seam. Add the panel's
+                grain back from a clean span of the same panel.
+   shade down   The same idea rotated, for a banner with ornaments at its
+                ends, where shading across would drag them into the text.
+   borrow       The keyboard's kana sit on parchment and the grid has empty
+                cells. Copy one of those over each kana, level its
+                brightness to the paper around the target, and feather the
+                edges. Pasted as hard squares, ninety of them read as a
+                checkerboard.
+   vote         The 23 job cards share one ornamented plaque and their
+                titles are different widths, so where one card's lettering
+                covers the scrollwork another's does not. Take, per pixel,
+                the value a MAJORITY of the player's own cards agree on. A
+                threshold of three is not enough: the titles are all painted
+                in the same two greens, so three cards agreeing on "pale
+                green" beats the handful showing plaque.
+
+Some pictures should simply be left. Four contest banners in har\ are
+ornamented edge to edge and every method leaves a mark. A clean Japanese
+banner beats a damaged English one.
+
+
+--------------------------------------------------------------------------
+7. THE FONT TRAP
+--------------------------------------------------------------------------
+
+Out of the box the game draws text through CreateFontA with charset 0
+(Western) instead of 128 (Shift-JIS). Measured by hooking all ten GDI font
+routes with a counter each: CreateFontA is called 59 times at startup,
+CreateFontIndirectA and GetGlyphOutlineA never.
+
+With charset 0, any two-byte character loses its first byte on screen. You
+will not notice while testing English dialogue, because ASCII is one byte
+per character. You WILL notice wherever the game formats its own text: the
+name-entry confirmation screen shows a date as
+
+   PSRPN@QZ@Pu
+
+which is 1431 nen 2 gatsu 1 nichi with only the second byte of each
+character surviving.
+
+Fixing it properly means hooking CreateFontA at runtime and forcing charset
+128. That needs a DLL alongside the game, which is a different kind of
+distribution; we chose not to ship one.
+
+
+--------------------------------------------------------------------------
+8. THE NAME-ENTRY KEYBOARD
+--------------------------------------------------------------------------
+
+The grid of kana is not drawn from the picture. The picture only shows what
+is in a table of character codes in the executable, and the code that reads
+it copies whichever two bytes it finds, checking only for 0x8140 (the
+full-width space), which it treats as an empty cell.
+
+   katakana page   file offset 0x0ED6B0 .. 0x0ED76F
+   hiragana page   file offset 0x0ED770 .. 0x0ED82F
+
+   six rows per page, stride 0x20
+   fifteen cp932 characters per row (30 bytes) then two zero bytes
+   ROWS ARE STORED BOTTOM ROW FIRST -- the lowest address is the bottom line
+
+   the grid is drawn at   x = 68 + 36*column,  y = 167 + 36*row
+
+Find the table by searching for the kana themselves, not by address
+arithmetic: the published pointer array did not read as pointers at the
+offset we computed, and locating the block by its contents also survives a
+differently built copy.
+
+Do not centre the letters. The alphabet is 13 wide and the grid is 15, so
+centring puts your first letter on cell 1 while the game counts from cell 0.
+Measured: the first kana sits at x=68, a centred first letter at x=104.
+
+Put the letter in the SECOND byte of each cell: because of the font trap in
+section 7, only the second byte survives. Full-width 'A' is 0x82 0x60,
+and what appears is 0x60, a backtick. We use 0x20 plus the ASCII letter --
+if the first byte is dropped you get the letter, if it is kept you get a
+space before it, which is ugly but readable.
+
+The six-character limit on names is a comparison in .text, which is
+encrypted on disk by the copy protection. You cannot patch it in the file.
+
+AND THE BIG ONE: editing PrincessMaker4.exe at all will stop the game
+starting if its copy protection is still active. SafeDisc checks the program
+against itself. Sections stxt774 and stxt371 are the protection; a no-CD
+patch disables the check by parking code in the padding after the PE header
+(ours writes 168 bytes at file offset 0x000F00 and an 8-byte jump at
+0x128C65). If that padding is still zeros, do not touch the executable.
+
+
+--------------------------------------------------------------------------
+9. ADVICE, AND MISTAKES WORTH AVOIDING
+--------------------------------------------------------------------------
+
+- Verify before you install, not after. Our patcher rebuilds the archive,
+  unpacks every entry again, and compares each against a recorded hash
+  before it writes anything to the game folder. It has refused to install
+  twice during development, both times correctly.
+- Keep an undo file and test it every single time: check that the restored
+  file is byte-identical to the backup after every change. Ours is.
+- Make re-running safe. Restore the original first, then patch again. Ours
+  borrows blank parchment from spare keyboard cells, and after one pass
+  several of those cells have letters in them.
+- Look at the result, do not just count it. Every error worth catching here
+  was found by rendering something and looking at it, never by a number
+  going green. The numbers said the status panel was 43% to 78% one colour;
+  the picture said no.
+- Do not hunt for a key to the string cipher. There is none, and the wrong
+  guesses -- a running counter, a kana substitution table, frequency
+  analysis -- all produce something that looks almost like text. Three
+  hypotheses about the cipher were wrong, three about which font call to
+  hook, four about how to tell a floating label from a panel one.
+- Do not translate the roomy strings first. The cramped ones carry the real
+  decisions and they change the rest.
+- Do not fill an erased label with one flat colour: it reads as plastic
+  glued onto wood. Do not shade across a span containing ornament: it
+  smears.
+- Do not judge "is this on a panel?" from the pixels around the label.
+  These sheets are packed so tight that whatever you sample belongs to the
+  next label. Ask the .spd instead: a plate's chip is much bigger than its
+  lettering, a floating word's chip is cut tight around it.
+
+
+--------------------------------------------------------------------------
+10. WHAT IS STILL UNSOLVED
+--------------------------------------------------------------------------
+
+- The font charset, properly, without a DLL alongside the game.
+- The four contest banners in har\ and the album's three section headings.
+- Making the name field accept more than six characters.
+- Whether patching the executable survives SafeDisc on any copy where the
+  protection is live. We assume not. It has not been tested, because there
+  is nothing to gain by breaking somebody's game to find out.
+
+If you solve any of these, please publish it.
+
+
+--------------------------------------------------------------------------
+
+The Python in this download does all of the above and is meant to be read.
+pm4_english_patch.py handles the archive and the text; pm4_ui_apply.py the
+pictures; pm4_exe_keyboard.py the keyboard table.
